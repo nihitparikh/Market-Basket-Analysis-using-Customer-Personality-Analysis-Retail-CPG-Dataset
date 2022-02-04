@@ -1,0 +1,317 @@
+## DATA ANALYSIS & VISUALIZATION FINAL PROJECT ##
+## EXPLORATORY DATA ANALYSIS & ASSOCIATION RULE MINING ON A CUSTOMER PERSONALITY ANALYSIS DATASET##
+## NIHIT PARIKH (np24388): Graduate Student at McCombs School of Business in its MS Marketing program for Class of 2022 ##
+## FALL 2021 TERM ##
+
+
+##Link to my kaggle dataset
+## https://www.kaggle.com/danielkorth/eda-customer-personality-analysis/data
+
+
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(dplyr)
+
+install.packages("aod")
+library(aod)
+
+install.packages("arules")
+library(arules)
+
+install.packages("arulesViz")
+library(arulesViz)
+
+library(datasets)
+
+install.packages("plotly")
+library(plotly)
+
+install.packages("GGally")
+library(GGally)
+
+# Set width and height of figure
+fig <- function(width, heigth){
+  options(repr.plot.width = width, repr.plot.height = heigth)
+}
+
+# Different default theme options for ggplot and plotly visualizations
+set_theme_ggplot = function(){
+  theme_set(theme_classic())
+  theme_update(plot.title=element_text(face='bold', size=30),
+               axis.text=element_text(size=17),
+               axis.title=element_text(size=20),
+               legend.text=element_text(size=20)
+  )
+}
+
+#function for theme
+set_theme_plotly = function(){
+  theme_set(theme_classic())
+}
+
+#fig
+fig(20,8)
+set_theme_ggplot()
+
+head(marketing_campaign)
+sprintf("The dataset has in total %d rows.", nrow(marketing_campaign))
+
+
+###################################################
+#                    PART 1                       #
+###################################################
+
+## PEOPLE ##
+marketing_campaign = marketing_campaign %>%
+  mutate(Age=2021-Year_Birth)
+
+# Age Distribution
+ggplot(data=marketing_campaign) +
+  geom_histogram(mapping=aes(x=Age), binwidth=4, fill='white', color='black') +
+  geom_vline(aes(xintercept=mean(Age)), linetype='dashed', color='red', size=1.5) +
+  ggtitle('Histogram of age of customers')
+
+# Education Level
+ggplot(marketing_campaign, mapping=aes(x=Education, fill=Education)) + 
+  geom_bar() + 
+  ggtitle('Bar plot of education level') +
+  theme(legend.position="none")
+
+# Marital Status
+df_temp = marketing_campaign %>% count(Marital_Status) %>% filter(n>5)
+
+ggplot(df_temp,mapping=aes(x='', y=n, fill=Marital_Status)) + 
+  geom_bar(stat='identity', width=1, color='white') + 
+  coord_polar("y", start=0) +
+  ggtitle('Pie chart of marital status') +
+  theme_void() +
+  theme(plot.title=element_text(face='bold', size=30), legend.text=element_text(size=20), legend.title=element_text(size=20, face='bold'))
+
+marketing_campaign %>% count(Marital_Status) %>% filter(n<6)
+
+# Income distribution
+marketing_campaign %>%
+  filter(Income <= 500000) %>%
+  ggplot(aes(x=Income)) +
+  geom_density() + 
+  ggtitle('Density plot of income')
+
+# Income boxplot for different educational levels
+set_theme_plotly()
+plot = marketing_campaign %>%
+  filter(Income <= 500000) %>%
+  ggplot(mapping=aes(x=Education, y=Income, fill=Education)) +
+  geom_boxplot() + 
+  ggtitle('Box plot of income across different education levels') +
+  theme(legend.position='none')
+ggplotly(plot)
+
+head(sort(marketing_campaign$Income, decreasing=T))
+
+#Kid/Teen
+df1 = count(marketing_campaign, Teenhome) %>% mutate(type='Teenhome') %>% rename(count=Teenhome)
+df2 = count(marketing_campaign, Kidhome) %>% mutate(type='Kidhome') %>% rename(count=Kidhome)
+df_3 = add_row(df1, df2)
+
+set_theme_plotly()
+
+plot = ggplot(df_3, aes(x=count, fill=type, y=n)) + 
+  geom_bar(stat='identity', position='dodge') + 
+  ggtitle('Bar chart of kid/teen at home')
+
+ggplotly(plot)
+
+marketing_campaign %>% summarize(avg_number_of_kids=mean(Kidhome) + mean(Teenhome))
+
+
+# Recency
+set_theme_ggplot()
+
+ggplot(marketing_campaign, aes(x=Recency)) +
+  geom_density() +
+  ggtitle('Density plot: #days since last purchase')
+
+## PRODUCT ##
+# Wine
+set_theme_plotly()
+
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntWines), fill='#57166F', color='white', binwidth=50) +
+  ggtitle('Histogram of wine purchased in the last two years')
+
+ggplotly(plot)
+
+# Fruits
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntFruits), fill='#77dd77', color='white', binwidth=10) + 
+  ggtitle('Histogram of fruits purchased in the last two years')
+
+ggplotly(plot)
+
+# Meat
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntMeatProducts), binwidth=50, fill='red', color='white') +
+  ggtitle('Histogram of meat products purchased in the last two years')
+
+ggplotly(plot)
+
+# Fish
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntFishProducts), binwidth=10, fill='#add8e6', color='white') +
+  ggtitle('Histogram of fish products purchased in the last two years')
+
+ggplotly(plot)
+
+#Sweets
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntSweetProducts), binwidth=10, fill='orange', color='white') +
+  ggtitle('Histogram of sweet products purchased in the last two years')
+
+ggplotly(plot)
+
+#Gold
+plot = ggplot(marketing_campaign) +
+  geom_histogram(aes(x=MntGoldProds), binwidth=20, fill='#e5c100', color='white') +
+  ggtitle('Histogram of gold purchased in the last two years')
+
+ggplotly(plot)
+
+## A funny observation
+##Why are there normal goods like fish, meat, fruits etc. in the dataset, and the out of nowhere, the amount of gold purchased is recorded. Is this a grocery store that sells gold? :D
+
+# Correlation of Products
+df_products = marketing_campaign[c('MntWines', 'MntFruits', 'MntMeatProducts', 'MntFishProducts', 'MntSweetProducts', 'MntGoldProds')]
+fig(16,16)
+ggpairs(df_products)
+
+###Findings from the current plot
+#wine seems to go well with meat
+#gold is correlated the most with fish
+#fish and fruits have the highest correlation
+
+###################################################
+#                    PART 2                       #
+###################################################
+
+#Let's run some regressions now to assess the effect of customer personality on a customer's purchasing behavior
+#Effect of Age on the customer accepting offer
+lm1 = lm(Response ~ Age, data=marketing_campaign) 
+summary(lm1)
+
+#Effect of promotion (marketing campaigns) on customer response
+lm2 <- glm(Response ~ AcceptedCmp1 + AcceptedCmp2 + AcceptedCmp3 + AcceptedCmp4 + AcceptedCmp5, data=marketing_campaign, family = "binomial")
+summary(lm2)
+
+#Effect of promotion (marketing campaigns) on customer purchases made with discount
+lm3 = lm(NumDealsPurchases ~ AcceptedCmp1 + AcceptedCmp2 + AcceptedCmp3 + AcceptedCmp4 + AcceptedCmp5 + Response, data=marketing_campaign)
+summary(lm3)
+
+
+#Do only customers with higher income and/or education levels complain?
+lm4 = lm(Complain ~ Education + Income, data=marketing_campaign) 
+summary(lm4)
+
+#Effect of products on the recency of customer purchases
+lm5 = lm(Recency ~ MntWines + MntFruits + MntMeatProducts + MntFishProducts + MntSweetProducts + MntGoldProds, data=marketing_campaign) 
+summary(lm5)
+##Statistically insignificant, surprising right?
+
+#Do households with kids visit the store more often than others?
+lm6 = lm(Recency ~ Kidhome + Teenhome, data=marketing_campaign) 
+summary(lm6)
+
+#Effect of number of monthly web visits on number of web purchases
+lm7 = lm(NumWebPurchases ~ NumWebVisitsMonth, data=marketing_campaign) 
+summary(lm7)
+##The negative beta coefficient is surprising!!
+
+
+#Effect of number of monthly web visits on number of catalog purchases
+lm8 = lm(NumCatalogPurchases ~ NumWebVisitsMonth, data=marketing_campaign) 
+summary(lm8)
+
+
+#Effect of number of monthly web visits on number of store purchases
+lm9 = lm(NumStorePurchases ~ NumWebVisitsMonth, data=marketing_campaign) 
+summary(lm9)
+
+
+#Effect of number of monthly web visits on customers' timeline/recency of making purchases
+lm10 = lm(Recency ~ NumWebVisitsMonth, data=marketing_campaign) 
+summary(lm10)
+
+
+###################################################
+#                    PART 3                       #
+###################################################
+
+## MARKET BASKET ANALYSIS ##
+## ASSOCIATION RULE MINING ##
+
+#Let's look at baskets of 10 customers
+Wines <- c(marketing_campaign$MntWines[1:10])
+Fruits <- c(marketing_campaign$MntFruits[1:10])
+Meat <- c(marketing_campaign$MntMeatProducts[1:10])
+Fish <- c(marketing_campaign$MntFishProducts[1:10])
+Sweets <- c(marketing_campaign$MntSweetProducts[1:10])
+Gold <- c(marketing_campaign$MntGoldProducts[1:10])
+
+#Create a new data frame called groceries
+groceries <- data.frame(Wines, Fruits, Meat, Fish, Sweets, Gold)
+groceries
+
+## Calculates SUPPORT for frequent items
+frequentItems <- eclat (groceries, parameter = list(supp = 0.07, maxlen = 3)) 
+inspect(frequentItems)
+summary(groceries)
+
+## UT Austin primary palette ##
+UT_palette <- colorRampPalette(c("#bf5700", "#005f86", "#9cadb7", "#333f48", "#ffffff", "#f8971f", "#ffd600", "#a6cd57", "#579d42", "#00a9b7", "#d6d2c4"))
+
+##product recommendation rules
+# Min Support as 0.001, confidence as 0.8
+rules <- apriori (groceries, parameter = list(supp = 0.001, conf = 0.5))
+
+# high CONFIDENCE rules
+rules_conf <- sort (rules, by="confidence", decreasing=TRUE)
+
+# show the support, lift and confidence for all rules
+inspect(head(rules_conf))
+
+# high LIFT rules
+rules_lift <- sort (rules, by="lift", decreasing=TRUE)
+
+# show the support, lift and confidence for all rules
+inspect(head(rules_lift))
+
+##The rules with confidence of 1 (see rules_conf above) imply that, whenever the LHS item was purchased, the RHS item was also purchased 100% of the time.
+##A rule with a lift of 18 (see rules_lift above) imply that, the items in LHS and RHS are 18 times more likely to be purchased together compared to the purchases when they are assumed to be unrelated.
+
+# Control the number of rules in the output
+rules <- apriori(groceries, parameter = list (supp = 0.001, conf = 0.5, maxlen=2)) # maxlen = 2 limits the elements in a rule to 2
+
+##To get 'strong' rules, increase the value of 'conf' parameter.
+##To get 'longer' rules, increase 'maxlen'.
+
+## Removing the redundant rules
+# get subset rules in vector
+subsetRules <- which(colSums(is.subset(rules, rules)) > 1) 
+length(subsetRules)  #> 76
+# remove subset rules. 
+rules <- rules[-subsetRules]
+
+## to find rules related to given items
+# To find what factors influenced purchase of product X (what did customer buy before buying product X)
+# To find out what customers had purchased before buying 'Sweets'. This will help you understand the patterns that led to the purchase of 'Meat'.
+## here's an example: get rules that lead to buying 'Sweets'
+rules <- apriori (data=groceries, parameter=list (supp=0.001,conf = 0.08), appearance = list (default="lhs",rhs="Sweets"), control = list (verbose=F)) # high CONFIDENCE rules
+rules_conf <- sort (rules, by="confidence", decreasing=TRUE) 
+inspect(head(rules_conf))
+
+## to find out what customers bought along with/after product X
+## here's an example: get rules that lead to buying a product/item after buying 'Fish'
+rules <- apriori (data=groceries, parameter=list (supp=0.001,conf = 0.15,minlen=2), appearance = list(default="rhs",lhs="Fish"), control = list (verbose=F)) # those who bought 'fish' also bought..
+rules_conf <- sort (rules, by="confidence", decreasing=TRUE) # 'high-confidence' rules.
+inspect(head(rules_conf))
